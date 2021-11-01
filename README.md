@@ -1,6 +1,8 @@
 # TreeShapeVAE
 This repository contains the material for the paper: "Deep clustering of bacterial tree images"
 
+"Trees.zip" contains all the big trees which we extract the subtrees from them. The subtrees are named as "bigtree name x" which x is the node that the subtree is rooted at! For example "Campylobacter14080.png" is the image of one of the subtrees of Campylobacter which is rooted at node 14080.
+
 "Clusters.zip" contains the 9 clusters of the images.
 
 "Plots.R" contains the code for generating the figures 4-8 of the paper.
