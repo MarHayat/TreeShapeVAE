@@ -1,7 +1,7 @@
 # TreeShapeVAE
 This repository contains the material for the paper: "Deep clustering of bacterial tree images"
 
-Cluster folder contains the 9 clusters of the images.
+"Clusters.zip" contains the 9 clusters of the images.
 
 "Plots.R" contains the code for generating the figures 4-8 of the paper.
 
