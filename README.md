@@ -7,6 +7,10 @@ This repository contains the material for the paper: "Deep clustering of bacteri
 
 "Plots.R" contains the code for generating the figures 4-8 of the paper.
 
+"tree_stats.R" is the code for computing the tree shap statistics.
+
+"whole_stats.csv" contains the values of the tree shape statistics for all the subtrees in 9 clusters.
+
 "all_date.csv" contains the date of all subtrees.
   The columns show the subtrees, dates, frequencies, and the clustre numbers respectively. For example, the first row shows that Acinetobacter1775 is in cluster 1 and has 1 tip in 2010. Acinetobacter1775 is the subtree of Acinetobacter tree that rooted at node 1775.
   
