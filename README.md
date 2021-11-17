@@ -20,3 +20,14 @@ This repository contains the material for the paper: "Deep clustering of bacteri
 "tab_species.csv" shows the distribution of the species across the clusters. For example, column 1 shows the distribution of the Acinetobacter across the 9 clusters. The some of each row shows the numbers of subtrees at each cluster.
 
 "metadata.csv" contains the metadata (including time and location) corresponding to each tip of the trees. I used this metadata to generate "all_loc_region.csv" and "all_date.csv".
+
+"fullMetadata.csv", three columns : cluster number, ID and location are added to "metadata.csv"!
+fullTreeStats.csv, which contains the unnormalized statistics for all trees
+
+"fullTreeStatsNormalized.csv" contains normalized tree shape statistics for all the tree.
+
+"fullTreeStatsTested.csv" contains the results of the statistical tests.
+
+"fullTreeStatsNormalizedTested.csv" contains the results of the statistical tests for normalized statistics.
+
+"Stats.R" the script to compute the statistical tests and the related tables. 
