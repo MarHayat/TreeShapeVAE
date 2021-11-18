@@ -21,10 +21,12 @@ names=c("Acinetobacter", "Campylobacter","Citrobacter_freundii", "Clostridioides
         "Photobacterium_damselae")
 
 #tab_species is a table that each column shows the distribution of each species across the clusters!
+setwd("~/TreeShapeVAE/Clusters")
+
 tab_species = matrix(0,9,28)
 colnames(tab_species) = names
 for (i in c(0:8)) {
-  allFiles = list.files(path = paste0("~/cluster",i), 
+  allFiles = list.files(path = paste0("cluster",i), 
                         pattern = ".png")
   bacteria_name=sapply(allFiles, function(x) gsub( "\\d.*$", "", x ))
   #length(unique(bacteria_name))
@@ -100,21 +102,102 @@ ggplot(data, aes(x=clust, y=Freq, fill=type)) +
 
 #*******************************************************************************
 #figure 6: the  geographical  distributions  of  the  clusters 
-df = read.csv("~/all_loc_region.csv")
+df = read.csv("../all_loc_region.csv")
 df = df[,1:ncol(df)]
 i=1
 df$cluster = ifelse(df$cluster==paste0("cluster",i),paste0("cluster",i),"All datasets")
 
 p <- ggplot(df, aes(x=Location,y = Freq,fill= cluster)) + theme_light()+
-  geom_boxplot(width=0.50, color="black", alpha=0.7,size = 0.2, position=position_dodge(0.9),outlier.size=0.2)+
-  theme(axis.text.x = element_text(color="black", size=12, angle=90) ,axis.text.y = element_text(color="black", size=15, angle=90))+
-  theme(axis.title.x = element_text(size = 5),axis.title.y = element_text(size = 5))+ guides(fill=guide_legend(ncol=2))+ 
-  ylab("")+xlab("")+ theme(legend.title = element_blank(),legend.position = "top",legend.text = element_text(size = 14),legend.key.size = unit(1, 'cm'))
+  geom_boxplot(width=0.50, color="black", alpha=0.7,size = 0.2,
+               position=position_dodge(0.9),outlier.size=0.2)+
+  theme(axis.text.x = element_text(color="black", size=12, angle=90) ,
+        axis.text.y = element_text(color="black", size=15, angle=90))+
+  theme(axis.title.x = element_text(size = 5),axis.title.y = element_text(size = 5))+ 
+  guides(fill=guide_legend(ncol=2))+ 
+  ylab("")+xlab("")+ 
+  theme(legend.title = element_blank(),legend.position = "top",
+        legend.text = element_text(size = 14),legend.key.size = unit(1, 'cm'))
 p
 ggsave(paste0("~/cls",i,"_region.pdf"),width =5, height =5)
 
 #*******************************************************************************
-#figure 7: the distribution of the species dates at each cluster.
+# new figure 6: the  geographical  distributions  of  the  clusters, with percents, from 
+# leonid's metadata 
+fullMeta = readr::read_csv("../fullMetadata.csv")
+mydf = fullMeta %>% select(ID, Species, Region) 
+
+# i need to use group and summarize to work out the portions of each ID in each location 
+# i want the numbers in each ID -- summarize, by grouping on id, use n()  
+# i want the numbers in each geo_loc_name in each id -- summarize, by grouping on id and geo_loc_name, use n()
+# then divide them. no doubt there is a tidy way to do this. this isn't it. 
+fullMeta$country = word(fullMeta$geo_loc_name, sep = "\\:")
+#fullMeta$region = countrycode(fullMeta$country, origin="country.name",
+#                                 destination = "region") 
+# fullMeta$region[which(is.na(fullMeta$region))] = "Unknown"
+
+df1 = fullMeta %>% group_by(ID) %>% summarise(treesize = n(), Cluster = Cluster[1], 
+                                            Species=Species[1]  )
+df2 = fullMeta %>% group_by(ID, Region) %>% summarise(locsize = n(),
+                                                      Cluster = Cluster[1], 
+                                                      Species=Species[1])
+df2$locperc = 100*df2$locsize / df1$treesize[match(df2$ID, df1$ID)] 
+df2$Cluster = paste("Cluster", df2$Cluster+1)
+ggplot(data= df2, aes(x=Cluster, y=locperc, color=Region))+geom_boxplot() +
+  facet_wrap(~Region, scales = "free_y") + theme(axis.text.x = 
+                                element_text(color="black", size=12, angle=90,hjust=1), 
+                              axis.title.x = element_blank()) + ylab("Percent of subtree")+ 
+  guides(color=FALSE)
+ggsave("cluster-geography.pdf", height = 6, width = 7)
+
+
+#*******************************************************************************
+# CC new figure 7: the distribution of the species dates at each cluster.
+library(lubridate)
+fullMeta$date = ymd(fullMeta$target_creation_date)
+fullMeta$year = factor(year(fullMeta$date))
+df1 = fullMeta %>% group_by(ID) %>% summarise(treesize = n(), Cluster = Cluster[1], 
+                                              Species=Species[1]  )
+df2 = fullMeta %>% group_by(ID, year) %>% summarise(yearsize = n(),
+                                                      Cluster = Cluster[1], 
+                                                      Species=Species[1])
+df2$yearperc = 100*df2$yearsize / df1$treesize[match(df2$ID, df1$ID)] 
+df2$Cluster = paste("Cluster", df2$Cluster+1)
+
+dfall = df2; dfall$Cluster = All
+
+
+ ggplot(data= df2, aes(x=year, y=yearperc, color=Cluster))+geom_boxplot(position="dodge") +
+  facet_wrap(~Cluster, scales = "free_y") + theme(axis.text.x = 
+                   element_text(color="black", size=12, angle=90,hjust=1), 
+                   axis.title.x = element_blank()) + ylab("Percent of subtree") + 
+  guides(color=FALSE)
+ # p + geom_boxplot(data = subset(df2, select = -Cluster),
+ #                 aes(x=year, y=yearperc), position = "dodge") 
+ ggsave("cluster-year.pdf", height = 6, width = 7)
+ 
+ #*******************************************************************************
+ # CC new figure- percent of cluster by epi_type 
+ df2 = fullMeta %>% group_by(ID, epi_type) %>% summarise(episize = n(),
+                                                     Cluster = Cluster[1], 
+                                                     Species=Species[1])
+ df2$epiperc = 100*df2$episize / df1$treesize[match(df2$ID, df1$ID)] 
+ df2$Cluster = paste("Cluster", df2$Cluster+1)
+ 
+  ggplot(data= df2, aes(x=Cluster, y=epiperc, fill=epi_type))+
+    geom_boxplot(position = position_dodge(0.8), width=0.5) +
+   theme(axis.text.x =  element_text(color="black", size=12, angle=90,hjust=1), 
+                    axis.title.x = element_blank(),
+         legend.position = "bottom") + ylab("Percent of subtree") +
+    labs(color="Data type")+ labs(fill="Data type")
+  
+  ggsave("cluster-epitype.pdf", width = 8, height = 6)
+  
+ 
+ 
+ 
+
+#*******************************************************************************
+# old figure 7: the distribution of the species dates at each cluster.
 df = read.csv("~/all_date.csv")
 df = df[,2:ncol(df)]
 i=1
