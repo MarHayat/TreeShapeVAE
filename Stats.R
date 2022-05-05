@@ -1,6 +1,7 @@
 library(tidyverse)
 library(magrittr)
 library(ape)
+library(igraph)
 library(mclust)
 library(aricode)
 library(lubridate)
@@ -19,6 +20,16 @@ STAT_NAMES = c("B1", "B2", "betweenness", "cherries", "closeness", "colless", "D
                "kurtosis", "maxHeight", "maxWidth", "pitchforks", "sackin", "skewness", "stairs1", "stairs2", "treeSize")
 MIN_SIZE = 35
 MAX_SIZE = 100
+minFarness = rep(0, MAX_SIZE)
+minFarness[1:2] = 1:2
+curIncr = 2
+for (index in 3:MAX_SIZE) {
+  if ((index %% 3 == 0 && near(log(index/3, 2), round(log(index/3, 2)))) || 
+      (index %% 3 == 1 && near(log((index - 1)/3, 2), round(log((index - 1)/3, 2))))) {
+    curIncr = curIncr + 1
+  }
+  minFarness[index] = minFarness[index - 1] + curIncr
+}
 
 setwd("~/Downloads/PublicationsAndSubmissions/TreeShapeVAE/")
 
@@ -150,14 +161,14 @@ normalizeAllStats = function(inputFile = "fullTreeStats.csv") {
     mutate_at("B2",         ~{divide_by(., log2(treeSize))})           %>%
     mutate_at("betweenness",~{divide_by(., 4 * (treeSize - 1)^2 / 3)}) %>%
     mutate_at("cherries",   ~{divide_by(., treeSize / 2)})             %>%
-    mutate_at("closeness",  ~{divide_by(., (treeSize + 1)^2 / 2)})     %>%
+    mutate_at("closeness",  ~{multiply_by(., minFarness[treeSize])})   %>%
     mutate_at("colless",    ~{divide_by(., choose(treeSize - 1, 2))})  %>%
-    mutate_at("DelW",       ~{divide_by(., treeSize / 2)}) %>%
-    mutate_at("I2",         ~{divide_by(., treeSize - 2)}) %>%
-    mutate_at("ILnumber",   ~{divide_by(., treeSize - 2)}) %>%
-    mutate_at("maxHeight",  ~{divide_by(., treeSize - 1)}) %>%
-    mutate_at("maxWidth",   ~{divide_by(., treeSize)})     %>%
-    mutate_at("pitchforks", ~{divide_by(., treeSize / 3)}) %>%
+    mutate_at("DelW",       ~{divide_by(., treeSize / 2)})             %>%
+    mutate_at("I2",         ~{divide_by(., treeSize - 2)})             %>%
+    mutate_at("ILnumber",   ~{divide_by(., treeSize - 2)})             %>%
+    mutate_at("maxHeight",  ~{divide_by(., treeSize - 1)})             %>%
+    mutate_at("maxWidth",   ~{divide_by(., treeSize)})                 %>%
+    mutate_at("pitchforks", ~{divide_by(., treeSize / 3)})             %>%
     mutate_at("sackin",     ~{divide_by(., choose(treeSize + 1, 2) -1)})
   write_csv(Tab, file = str_replace(inputFile, ".csv", "Normalized.csv"))
   Tab
@@ -193,11 +204,12 @@ computeColless = function(inputTree) {
 estimateAssociation = function(Factor1, Factor2) {
   ### Computes statistics for a two-way table; Cramer's V statistic, the uncertainty coefficient, the adjusted Rand index
   xTable = table(Factor1, Factor2)
-  V = CramerV(xTable, correct = FALSE)
-  Vcorr = CramerV(xTable, correct = TRUE)
+  V = CramerV(xTable, correct = FALSE, conf.level = 0.95)
+  Vcorr = CramerV(xTable, correct = TRUE, conf.level = 0.95)
   # comp = clustComp(Factor1, Factor2)
   ARI = adjustedRandIndex(Factor1, Factor2)
   NMI = NMI(Factor1, Factor2)
+  AMI = AMI(Factor1, Factor2)
   # cs = colSums(xTable)
   # rs = rowSums(xTable)
   # Sum = sum(xTable)
@@ -211,14 +223,15 @@ estimateAssociation = function(Factor1, Factor2) {
   # uncertaintyRow = mutualInfo/rowEntropy
   # uncertaintyCol = mutualInfo/colEntropy
   # uncertaintySym = mutualInfo/((rowEntropy + colEntropy)/2)
-  output = c(V = V, correctedV = Vcorr, ARI = ARI, NMI = NMI)
+  output = c(V = V[1], V_L = V[2], V_U = V[3], cV = Vcorr[1], cv_L = Vcorr[2], cv_R = Vcorr[3], ARI = ARI, NMI = NMI, AMI = AMI)
   output
 }
 
 compareStats = function(inputFile = "fullTreeStats.csv", metadataFile = "fullMetadata.csv") {
   statTable = read_csv(inputFile)
   metaTable = read_csv(metadataFile) %>%
-    select(Cluster, ID, Species)
+    select(Cluster, ID, Species) %>%
+    distinct()
   statTable = statTable %>%
     inner_join(metaTable, by = c("Species", "ID")) %>%
     select(-Species, -ID) %>%
@@ -258,10 +271,30 @@ compareStats = function(inputFile = "fullTreeStats.csv", metadataFile = "fullMet
   output
 }
 
-#Tab0 = prepareClusters(inputFile = "metadata.csv", outputFile = "fullMetadata.csv")
-#Res  = prepareStats(inputFile = "fullMetadata.csv")
-#Assoc = lapply(Res, function(x) { estimateAssociation(x[[1]], x[[2]]) })
-#treeStats = prepareTreeStats(inputFile = "fullMetadata.csv", outputFile = "fullTreeStats.csv", extraFile = "Subtrees.RData")
-#normTreeStats = normalizeAllStats(inputFile = "fullTreeStats.csv")
-#treeAssocUnnorm = compareStats(inputFile = "fullTreeStats.csv", metadataFile = "fullMetadata.csv")
-#treeAssocNorm   = compareStats(inputFile = "fullTreeStatsNormalized.csv", metadataFile = "fullMetadata.csv")
+clusterStats = function(inputFile = "fullTreeStatsNormalized.csv", metadataFile = "fullMetadata.csv") {
+  statTable = read_csv(inputFile)
+  metaTable = read_csv(metadataFile) %>%
+    select(Cluster, ID, Species) %>%
+    distinct()
+  statTable = statTable %>%
+    inner_join(metaTable, by = c("Species", "ID")) %>%
+    select(-Species, -ID) %>%
+    select(Cluster, everything())
+}
+
+# Tab0 = prepareClusters(inputFile = "metadata.csv", outputFile = "fullMetadata.csv")
+# Res  = prepareStats(inputFile = "fullMetadata.csv")
+# Assoc = lapply(Res, function(x) { estimateAssociation(x[[1]], x[[2]]) })
+# treeStats = prepareTreeStats(inputFile = "fullMetadata.csv", outputFile = "fullTreeStats.csv", extraFile = "Subtrees.RData")
+# normTreeStats = normalizeAllStats(inputFile = "fullTreeStats.csv")
+# treeAssocUnnorm = compareStats(inputFile = "fullTreeStats.csv", metadataFile = "fullMetadata.csv")
+# treeAssocNorm   = compareStats(inputFile = "fullTreeStatsNormalized.csv", metadataFile = "fullMetadata.csv")
+# N1 = treeAssocUnnorm %>% filter(stat=="treeSize") %>% pull(significant) %>% sum
+# N2 = treeAssocNorm %>% group_by(stat) %>% mutate(N=sum(significant)) %>% slice(1) %>% ungroup %>% arrange(-N)
+# N3 = treeAssocNorm %>% group_by(C1, C2) %>% mutate(N = sum(significant)) %>% slice(1) %>% ungroup %>% filter(N == 0) %>% nrow
+# N4 = treeAssocNorm %>% group_by(C1, C2) %>% mutate(N = sum(significant)) %>% slice(1) %>% ungroup %>% filter(N == 1) %>% nrow
+# numDist = rep(NA, 9)
+# for (ind in 0:8) {
+#   numDist[ind + 1] = treeAssocNorm %>% filter(C1 == ind | C2 == ind) %>% mutate(other = C1 + C2 - ind) %>% group_by(other) %>%
+#     mutate(N = sum(significant)) %>% slice(1) %>% ungroup %>% filter(N > 0) %>% nrow
+# }
