@@ -31,3 +31,5 @@ fullTreeStats.csv, which contains the unnormalized statistics for all trees
 "fullTreeStatsNormalizedTested.csv" contains the results of the statistical tests for normalized statistics.
 
 "Stats.R" the script to compute the statistical tests and the related tables. 
+
+python_codes folder contains the codes for training the network and clustering the images. 
