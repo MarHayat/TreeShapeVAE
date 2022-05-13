@@ -6,3 +6,5 @@ main.py is the main code with the tuned hyperparameters to reproduce the current
 images.zip are the non-overlapping set of images that we use for the clustering task. 
 
 Nets.py contains different network structures. We used these networks and choose the one that results in the minimum error. 
+
+codes.zip contains the compressed represntation of the images.
